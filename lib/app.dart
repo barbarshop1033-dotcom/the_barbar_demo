@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'config/theme.dart';
 import 'config/routes.dart';
-import 'providers/auth_provider.dart';
 import 'providers/subscription_provider.dart';
+import 'widgets/demo_badge.dart';
 
 class BarberApp extends StatelessWidget {
   const BarberApp({super.key});
@@ -11,22 +11,24 @@ class BarberApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'The Barber',
+      title: 'The Barber - Demo',
       debugShowCheckedModeBanner: false,
       theme: BarberTheme.darkTheme,
       onGenerateRoute: AppRouter.generateRoute,
-      initialRoute: AppRouter.splashRoute,
-      navigatorObservers: [
-        AuthNavigatorObserver(),
-      ],
+      initialRoute: AppRouter.dashboardRoute, // DIRECT TO DASHBOARD - NO LOGIN!
+      builder: (context, child) {
+        return Stack(
+          children: [
+            child!,
+            // Small demo badge so viewers know it's a demo (non-intrusive)
+            const Positioned(
+              bottom: 8,
+              right: 8,
+              child: DemoBadge(),
+            ),
+          ],
+        );
+      },
     );
-  }
-}
-
-class AuthNavigatorObserver extends NavigatorObserver {
-  @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
-    super.didPush(route, previousRoute);
-    // Check subscription status on navigation
   }
 }

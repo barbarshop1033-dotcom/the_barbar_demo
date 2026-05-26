@@ -1,28 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import 'package:path/path.dart';
 import 'package:provider/provider.dart';
 import '../../config/theme.dart';
 import '../../providers/subscription_provider.dart';
 import '../../widgets/custom_appbar.dart';
 import '../../widgets/app_drawer.dart';
-import '../../widgets/loading_widget.dart';
 
-class SubscriptionScreen extends StatefulWidget {
+class SubscriptionScreen extends StatelessWidget {
   const SubscriptionScreen({super.key});
-
-  @override
-  State<SubscriptionScreen> createState() => _SubscriptionScreenState();
-}
-
-class _SubscriptionScreenState extends State<SubscriptionScreen> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SubscriptionProvider>().checkSubscription();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,24 +17,23 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       drawer: const AppDrawer(),
       body: Consumer<SubscriptionProvider>(
         builder: (context, subscriptionProvider, _) {
-          if (subscriptionProvider.isLoading) {
-            return const LoadingWidget(message: 'Loading subscription...');
-          }
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Current Plan Status
-                _buildCurrentPlanCard(subscriptionProvider),
+                // Demo Mode Banner
+                _buildDemoBanner(),
 
                 const SizedBox(height: 24),
 
-                // Plan Details (if active)
-                if (subscriptionProvider.isTrial ||
-                    subscriptionProvider.isActive)
-                  _buildPlanDetails(subscriptionProvider),
+                // Current Plan Status
+                _buildCurrentPlanCard(),
+
+                const SizedBox(height: 24),
+
+                // Plan Details
+                _buildPlanDetails(),
 
                 const SizedBox(height: 24),
 
@@ -63,75 +48,88 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Contact administrator to activate a plan',
+                  'All features unlocked in demo mode',
                   style: GoogleFonts.poppins(
                     color: BarberTheme.textSecondary,
                     fontSize: 14,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
 
-                // Admin notice
+                // Demo Plan Cards
+                _buildDemoPlanCard(
+                  name: 'Basic',
+                  price: 'Rs 999',
+                  features: [
+                    'Customer Management',
+                    'Udhaar Book',
+                    'Basic Reports',
+                    'Up to 500 Customers',
+                  ],
+                  color: 0xFF4CAF50,
+                ),
+                const SizedBox(height: 16),
+                _buildDemoPlanCard(
+                  name: 'Premium',
+                  price: 'Rs 1,999',
+                  features: [
+                    'Everything in Basic',
+                    'Advanced Reports',
+                    'Staff Management',
+                    'QR Payments',
+                    'Unlimited Customers',
+                    'Priority Support',
+                  ],
+                  color: 0xFF2196F3,
+                  isPopular: true,
+                ),
+                const SizedBox(height: 16),
+                _buildDemoPlanCard(
+                  name: 'Premium Plus',
+                  price: 'Rs 3,999',
+                  features: [
+                    'Everything in Premium',
+                    'Multi-shop Support',
+                    'API Access',
+                    'Custom Branding',
+                    '24/7 Support',
+                    'Data Export',
+                  ],
+                  color: 0xFF9C27B0,
+                ),
+
+                const SizedBox(height: 32),
+
+                // Demo Notice
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: BarberTheme.warningColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: BarberTheme.warningColor.withOpacity(0.3),
                     ),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.info_rounded,
+                      Icon(
+                        Icons.info_outline,
                         color: BarberTheme.warningColor,
-                        size: 20,
+                        size: 24,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'Plan activation is managed by the administrator. Please contact admin to subscribe.',
+                          'This is a demo version. All premium features are unlocked for demonstration purposes.',
                           style: GoogleFonts.poppins(
                             color: BarberTheme.warningColor,
-                            fontSize: 12,
+                            fontSize: 13,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 16),
-
-                // Plan Cards
-                _buildPlanCard(
-                  planKey: 'basic',
-                  planData: subscriptionProvider.availablePlans['basic']!,
-                  isPopular: false,
-                  subscriptionProvider: subscriptionProvider,
-                ),
-                const SizedBox(height: 16),
-                _buildPlanCard(
-                  planKey: 'premium',
-                  planData: subscriptionProvider.availablePlans['premium']!,
-                  isPopular: true,
-                  subscriptionProvider: subscriptionProvider,
-                ),
-                const SizedBox(height: 16),
-                _buildPlanCard(
-                  planKey: 'premium_plus',
-                  planData:
-                      subscriptionProvider.availablePlans['premium_plus']!,
-                  isPopular: false,
-                  subscriptionProvider: subscriptionProvider,
-                ),
-
-                const SizedBox(height: 32),
-
-                // Cancel Subscription (if active)
-                if (subscriptionProvider.isActive)
-                  _buildCancelSubscription(subscriptionProvider),
 
                 const SizedBox(height: 40),
               ],
@@ -142,61 +140,93 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildCurrentPlanCard(SubscriptionProvider provider) {
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
+  Widget _buildDemoBanner() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            BarberTheme.accentColor.withOpacity(0.2),
+            BarberTheme.accentColor.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: BarberTheme.accentColor.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: BarberTheme.accentColor.withOpacity(0.1),
+            ),
+            child: const Icon(
+              Icons.developer_mode_rounded,
+              color: BarberTheme.accentColor,
+              size: 48,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Demo Mode - All Features Unlocked',
+            style: GoogleFonts.poppins(
+              color: BarberTheme.accentColor,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'This is a demonstration version of The Barber app. All premium features are available to showcase the app\'s capabilities.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              color: BarberTheme.textSecondary,
+              fontSize: 14,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    if (provider.isTrial) {
-      statusColor = BarberTheme.warningColor;
-      statusText = 'Free Trial';
-      statusIcon = Icons.timer_rounded;
-    } else if (provider.isActive) {
-      statusColor = BarberTheme.successColor;
-      statusText = 'Active';
-      statusIcon = Icons.verified_rounded;
-    } else if (provider.isTrialExpired) {
-      statusColor = BarberTheme.dangerColor;
-      statusText = 'Trial Expired';
-      statusIcon = Icons.timer_off_rounded;
-    } else if (provider.isPlanExpired) {
-      statusColor = BarberTheme.dangerColor;
-      statusText = 'Plan Expired';
-      statusIcon = Icons.cancel_rounded;
-    } else {
-      statusColor = BarberTheme.textSecondary;
-      statusText = 'Unknown';
-      statusIcon = Icons.help_rounded;
-    }
-
+  Widget _buildCurrentPlanCard() {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [statusColor.withOpacity(0.2), statusColor.withOpacity(0.05)],
+          colors: [
+            BarberTheme.successColor.withOpacity(0.2),
+            BarberTheme.successColor.withOpacity(0.05),
+          ],
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
+        border: Border.all(color: BarberTheme.successColor.withOpacity(0.3)),
       ),
       child: Column(
         children: [
-          // Status Badge
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.15),
+              color: BarberTheme.successColor.withOpacity(0.15),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: statusColor.withOpacity(0.3)),
+              border: Border.all(
+                color: BarberTheme.successColor.withOpacity(0.3),
+              ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(statusIcon, color: statusColor, size: 20),
+                const Icon(
+                  Icons.verified_rounded,
+                  color: BarberTheme.successColor,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Text(
-                  statusText.toUpperCase(),
+                  'DEMO ACCESS',
                   style: GoogleFonts.poppins(
-                    color: statusColor,
+                    color: BarberTheme.successColor,
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 1,
@@ -206,140 +236,55 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
           ),
           const SizedBox(height: 20),
-
-          // Plan Name
-          if (provider.isActive && provider.plan != null)
-            Text(
-              provider.planDetails?['name'] ?? provider.plan!.toUpperCase(),
-              style: GoogleFonts.poppins(
-                color: BarberTheme.textPrimary,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
+          Text(
+            'Premium Plan',
+            style: GoogleFonts.poppins(
+              color: BarberTheme.textPrimary,
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
             ),
-
-          if (provider.isTrial)
-            Text(
-              '7 Days Trial',
-              style: GoogleFonts.poppins(
-                color: BarberTheme.textPrimary,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
+          ),
           const SizedBox(height: 12),
-
-          // Remaining Days
-          if (provider.remainingDays > 0) ...[
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: BarberTheme.cardColor,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Column(
-                    children: [
-                      Text(
-                        '${provider.remainingDays}',
-                        style: GoogleFonts.poppins(
-                          color: statusColor,
-                          fontSize: 40,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Days Remaining',
-                        style: GoogleFonts.poppins(
-                          color: BarberTheme.textSecondary,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: BarberTheme.cardColor,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  'Unlimited',
+                  style: GoogleFonts.poppins(
+                    color: BarberTheme.successColor,
+                    fontSize: 40,
+                    fontWeight: FontWeight.bold,
                   ),
-                ],
-              ),
+                ),
+                Text(
+                  'Days Remaining',
+                  style: GoogleFonts.poppins(
+                    color: BarberTheme.textSecondary,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            // Progress Bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: provider.isTrial
-                    ? 1 - (provider.remainingDays / 7)
-                    : 1 - (provider.remainingDays / 30),
-                backgroundColor: BarberTheme.primaryColor,
-                valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                minHeight: 8,
-              ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Demo Mode - No expiration',
+            style: GoogleFonts.poppins(
+              color: BarberTheme.textSecondary,
+              fontSize: 13,
             ),
-          ],
-
-          // Expired Message
-          if (provider.isExpired) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Your access has expired. Contact admin to activate a plan.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                color: BarberTheme.textSecondary,
-                fontSize: 14,
-              ),
-            ),
-          ],
-
-          // End Date
-          if (provider.endDate != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              '${provider.isTrial ? "Trial" : "Plan"} ends: ${DateFormat('dd MMMM yyyy').format(provider.endDate!)}',
-              style: GoogleFonts.poppins(
-                color: BarberTheme.textSecondary,
-                fontSize: 13,
-              ),
-            ),
-          ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildPlanDetails(SubscriptionProvider provider) {
-    if (provider.planDetails == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: BarberTheme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Trial Features',
-              style: GoogleFonts.poppins(
-                color: BarberTheme.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildFeatureItem('Full access to all features', true),
-            _buildFeatureItem('Customer Management', true),
-            _buildFeatureItem('Udhaar Book', true),
-            _buildFeatureItem('Billing & POS', true),
-            _buildFeatureItem('Staff Management', true),
-            _buildFeatureItem('Reports & Analytics', true),
-            _buildFeatureItem('QR Payments', true),
-            _buildFeatureItem('7 days validity', true),
-          ],
-        ),
-      );
-    }
-
+  Widget _buildPlanDetails() {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -350,7 +295,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Plan Features',
+            'Premium Features Included',
             style: GoogleFonts.poppins(
               color: BarberTheme.textPrimary,
               fontSize: 18,
@@ -358,9 +303,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          ...provider.planDetails!['features'].map<Widget>((feature) {
-            return _buildFeatureItem(feature.toString(), true);
-          }).toList(),
+          _buildFeatureItem('Customer Management', true),
+          _buildFeatureItem('Udhaar Book', true),
+          _buildFeatureItem('Billing & POS', true),
+          _buildFeatureItem('Staff Management', true),
+          _buildFeatureItem('Reports & Analytics', true),
+          _buildFeatureItem('QR Payments', true),
+          _buildFeatureItem('Unlimited Customers', true),
+          _buildFeatureItem('Priority Support', true),
         ],
       ),
     );
@@ -395,16 +345,14 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
-  Widget _buildPlanCard({
-    required String planKey,
-    required Map<String, dynamic> planData,
-    required bool isPopular,
-    required SubscriptionProvider subscriptionProvider,
+  Widget _buildDemoPlanCard({
+    required String name,
+    required String price,
+    required List<String> features,
+    required int color,
+    bool isPopular = false,
   }) {
-    final isCurrentPlan =
-        subscriptionProvider.plan == planKey && subscriptionProvider.isActive;
-    final color = Color(planData['color'] as int);
-    final features = planData['features'] as List<String>;
+    final planColor = Color(color);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -412,7 +360,9 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
         color: BarberTheme.cardColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isPopular ? BarberTheme.accentColor : color.withOpacity(0.3),
+          color: isPopular
+              ? BarberTheme.accentColor
+              : planColor.withOpacity(0.3),
           width: isPopular ? 2 : 1,
         ),
         boxShadow: isPopular
@@ -428,7 +378,6 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Popular Badge
           if (isPopular)
             Align(
               alignment: Alignment.topRight,
@@ -456,23 +405,20 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                 ),
               ),
             ),
-
           const SizedBox(height: 8),
-
-          // Plan Name
           Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: planColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.stars_rounded, color: color, size: 24),
+                child: Icon(Icons.stars_rounded, color: planColor, size: 24),
               ),
               const SizedBox(width: 12),
               Text(
-                planData['name'] as String,
+                name,
                 style: GoogleFonts.poppins(
                   color: BarberTheme.textPrimary,
                   fontSize: 20,
@@ -481,15 +427,12 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Price
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                planData['pricePerMonth'] as String,
+                price,
                 style: GoogleFonts.poppins(
                   color: BarberTheme.accentColor,
                   fontSize: 28,
@@ -498,7 +441,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
               const SizedBox(width: 4),
               Text(
-                '/${planData['duration']}',
+                '/30 days',
                 style: GoogleFonts.poppins(
                   color: BarberTheme.textSecondary,
                   fontSize: 14,
@@ -506,10 +449,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Features
           ...features.map(
             (feature) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
@@ -534,158 +474,38 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
             ),
           ),
-
           const SizedBox(height: 20),
-
-          // FIXED: Action Button - DISABLED (Admin only activation)
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: isCurrentPlan
-                ? ElevatedButton(
-                    onPressed: null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: BarberTheme.successColor.withOpacity(
-                        0.2,
-                      ),
-                      foregroundColor: BarberTheme.successColor,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+            child: ElevatedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context as BuildContext).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      '✨ Demo Mode: All features are already unlocked!',
                     ),
-                    child: Text(
-                      'Current Plan',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  )
-                : ElevatedButton.icon(
-                    onPressed: () {
-                      // SHOW MESSAGE - Manual activation only by admin
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text(
-                            '⚠️ Plan activation is managed by the administrator only.\nPlease contact admin to subscribe.',
-                          ),
-                          backgroundColor: BarberTheme.warningColor,
-                          duration: const Duration(seconds: 5),
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      );
-                    },
-                    icon: const Icon(
-                      Icons.admin_panel_settings_rounded,
-                      size: 18,
-                    ),
-                    label: Text(
-                      'Contact Admin',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isPopular
-                          ? BarberTheme.accentColor
-                          : color,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
+                    backgroundColor: BarberTheme.successColor,
+                    behavior: SnackBarBehavior.floating,
                   ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCancelSubscription(SubscriptionProvider provider) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: BarberTheme.dangerColor.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: BarberTheme.dangerColor.withOpacity(0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Cancel Subscription',
-            style: GoogleFonts.poppins(
-              color: BarberTheme.dangerColor,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'You will lose access to premium features at the end of your billing period.',
-            style: GoogleFonts.poppins(
-              color: BarberTheme.textSecondary,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  backgroundColor: BarberTheme.cardColor,
-                  title: Text(
-                    'Cancel Subscription',
-                    style: GoogleFonts.poppins(color: BarberTheme.dangerColor),
-                  ),
-                  content: Text(
-                    'Are you sure? Your data will not be lost.',
-                    style: GoogleFonts.poppins(
-                      color: BarberTheme.textSecondary,
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: Text(
-                        'No',
-                        style: GoogleFonts.poppins(
-                          color: BarberTheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: BarberTheme.dangerColor,
-                      ),
-                      child: Text(
-                        'Yes, Cancel',
-                        style: GoogleFonts.poppins(color: Colors.white),
-                      ),
-                    ),
-                  ],
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: isPopular
+                    ? BarberTheme.accentColor
+                    : planColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
-              );
-              if (confirm == true) {
-                await provider.cancelSubscription();
-              }
-            },
-            style: OutlinedButton.styleFrom(
-              foregroundColor: BarberTheme.dangerColor,
-              side: const BorderSide(color: BarberTheme.dangerColor),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
               ),
-            ),
-            child: Text(
-              'Cancel Subscription',
-              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              child: Text(
+                'Selected in Demo',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ],

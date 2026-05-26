@@ -1,356 +1,205 @@
-import 'package:sqflite/sqflite.dart';
 import '../models/bill_model.dart';
 import 'database_service.dart';
 
 class BillService {
-  // Get database instance
-  Future<Database> get _db async => DatabaseService.database;
-
-  // Get all bills with customer and worker info
+  // Get all bills
   Future<List<BillModel>> getAllBills() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      ORDER BY b.created_at DESC
-    ''');
-    return maps.map((map) => BillModel.fromMap(map)).toList();
+    final bills = await DatabaseService.getAll(DatabaseService.keyBills);
+    final customers = await DatabaseService.getAll(
+      DatabaseService.keyCustomers,
+    );
+    final workers = await DatabaseService.getAll(DatabaseService.keyWorkers);
+
+    return bills.map((bill) {
+      final customer = customers.firstWhere(
+        (c) => c['id'] == bill['customer_id'],
+        orElse: () => {},
+      );
+      final worker = workers.firstWhere(
+        (w) => w['id'] == bill['worker_id'],
+        orElse: () => {},
+      );
+      return BillModel.fromMap({
+        ...bill,
+        'customer_name': customer['name'],
+        'customer_phone': customer['phone'],
+        'worker_name': worker['name'],
+      });
+    }).toList();
   }
 
   // Get bill by ID
   Future<BillModel?> getBillById(int id) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      WHERE b.id = ?
-    ''',
-      [id],
+    final bills = await DatabaseService.getAll(DatabaseService.keyBills);
+    final bill = bills.firstWhere((b) => b['id'] == id, orElse: () => {});
+    if (bill.isEmpty) return null;
+
+    final customers = await DatabaseService.getAll(
+      DatabaseService.keyCustomers,
     );
-    if (maps.isEmpty) return null;
-    return BillModel.fromMap(maps.first);
+    final workers = await DatabaseService.getAll(DatabaseService.keyWorkers);
+    final customer = customers.firstWhere(
+      (c) => c['id'] == bill['customer_id'],
+      orElse: () => {},
+    );
+    final worker = workers.firstWhere(
+      (w) => w['id'] == bill['worker_id'],
+      orElse: () => {},
+    );
+
+    return BillModel.fromMap({
+      ...bill,
+      'customer_name': customer['name'],
+      'customer_phone': customer['phone'],
+      'worker_name': worker['name'],
+    });
   }
 
   // Get bill items
   Future<List<BillItem>> getBillItems(int billId) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'bill_items',
-      where: 'bill_id = ?',
-      whereArgs: [billId],
-    );
-    return maps.map((map) => BillItem.fromMap(map)).toList();
+    final items = await DatabaseService.getAll(DatabaseService.keyBillItems);
+    return items
+        .where((item) => item['bill_id'] == billId)
+        .map((item) => BillItem.fromMap(item))
+        .toList();
   }
 
-  // FIXED: Create new bill - ONLY inserts the bill, not items
+  // Create new bill
   Future<int?> createBill(BillModel bill) async {
-    final db = await _db;
+    final now = DateTime.now().toIso8601String();
+    final billMap = {
+      'customer_id': bill.customerId,
+      'worker_id': bill.workerId,
+      'total_amount': bill.totalAmount,
+      'discount': bill.discount,
+      'tax': bill.tax,
+      'final_amount': bill.finalAmount,
+      'payment_method': bill.paymentMethod,
+      'payment_status': bill.paymentStatus,
+      'notes': bill.notes,
+      'created_at': now,
+    };
 
-    return await db.transaction<int>((txn) async {
-      // Insert bill only (items inserted separately by BillProvider)
-      final billId = await txn.insert('bills', {
-        'customer_id': bill.customerId,
-        'worker_id': bill.workerId,
-        'total_amount': bill.totalAmount,
-        'discount': bill.discount,
-        'tax': bill.tax,
-        'final_amount': bill.finalAmount,
-        'payment_method': bill.paymentMethod,
-        'payment_status': bill.paymentStatus,
-        'notes': bill.notes,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+    final billId = await DatabaseService.insert(
+      DatabaseService.keyBills,
+      billMap,
+    );
 
-      if (billId > 0) {
-        // Update customer total spent and last visit
-        await txn.rawUpdate(
-          '''
-          UPDATE customers 
-          SET total_spent = total_spent + ?,
-              last_visit_date = ?,
-              visit_count = visit_count + 1,
-              updated_at = ?
-          WHERE id = ?
-        ''',
-          [
-            bill.finalAmount,
-            DateTime.now().toIso8601String(),
-            DateTime.now().toIso8601String(),
-            bill.customerId,
-          ],
-        );
+    if (billId > 0) {
+      // Update customer total spent
+      await _updateCustomerSpent(bill.customerId, bill.finalAmount);
+    }
 
-        // Update customer regular status if needed
-        final customer = await txn.query(
-          'customers',
-          columns: ['visit_count', 'is_regular'],
-          where: 'id = ?',
-          whereArgs: [bill.customerId],
-        );
-
-        if (customer.isNotEmpty) {
-          final visitCount = customer.first['visit_count'] as int;
-          final isRegular = customer.first['is_regular'] as int;
-
-          if (visitCount >= 5 && isRegular == 0) {
-            await txn.update(
-              'customers',
-              {'is_regular': 1},
-              where: 'id = ?',
-              whereArgs: [bill.customerId],
-            );
-          }
-        }
-      }
-
-      return billId;
-    });
+    return billId;
   }
 
   // Add bill item
   Future<int> addBillItem(BillItem item) async {
-    final db = await _db;
-    return await db.insert('bill_items', {
-      'bill_id': item.billId,
-      'service_id': item.serviceId,
-      'service_name': item.serviceName,
-      'price': item.price,
-      'quantity': item.quantity,
-      'total': item.total,
-    });
+    return await DatabaseService.insert(
+      DatabaseService.keyBillItems,
+      item.toMap(),
+    );
   }
 
   // Update bill payment status
   Future<bool> updatePaymentStatus(int billId, String status) async {
-    final db = await _db;
-    final count = await db.update(
-      'bills',
+    final result = await DatabaseService.update(
+      DatabaseService.keyBills,
+      billId,
       {'payment_status': status},
-      where: 'id = ?',
-      whereArgs: [billId],
     );
-    return count > 0;
+    return result > 0;
   }
 
   // Delete bill
   Future<bool> deleteBill(int id) async {
-    final db = await _db;
+    // First get bill to adjust customer spent
     final bill = await getBillById(id);
-    if (bill == null) return false;
+    if (bill != null && bill.paymentStatus == 'paid') {
+      await _updateCustomerSpent(bill.customerId, -bill.finalAmount);
+    }
 
-    return await db.transaction<bool>((txn) async {
-      await txn.delete('bill_items', where: 'bill_id = ?', whereArgs: [id]);
-      final count = await txn.delete('bills', where: 'id = ?', whereArgs: [id]);
-
-      if (count > 0 && bill.paymentStatus == 'paid') {
-        await txn.rawUpdate(
-          '''
-          UPDATE customers 
-          SET total_spent = MAX(0, total_spent - ?),
-              visit_count = MAX(0, visit_count - 1),
-              updated_at = ?
-          WHERE id = ?
-        ''',
-          [bill.finalAmount, DateTime.now().toIso8601String(), bill.customerId],
-        );
+    // Delete bill items
+    final items = await DatabaseService.getAll(DatabaseService.keyBillItems);
+    for (var item in items) {
+      if (item['bill_id'] == id) {
+        await DatabaseService.delete(DatabaseService.keyBillItems, item['id']);
       }
-      return count > 0;
-    });
+    }
+
+    // Delete bill
+    final result = await DatabaseService.delete(DatabaseService.keyBills, id);
+    return result > 0;
   }
 
   // Get today's bills
   Future<List<BillModel>> getTodayBills() async {
-    final db = await _db;
-    final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day).toIso8601String();
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      WHERE b.created_at >= ?
-      ORDER BY b.created_at DESC
-    ''',
-      [startOfDay],
-    );
-    return maps.map((map) => BillModel.fromMap(map)).toList();
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    final bills = await getAllBills();
+    return bills.where((b) {
+      final billDate = b.createdAt.toIso8601String().substring(0, 10);
+      return billDate == today;
+    }).toList();
   }
 
-  // Get bills from specific date
+  // Get bills from date
   Future<List<BillModel>> getBillsFromDate(DateTime date) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      WHERE b.created_at >= ?
-      ORDER BY b.created_at DESC
-    ''',
-      [date.toIso8601String()],
-    );
-    return maps.map((map) => BillModel.fromMap(map)).toList();
+    final bills = await getAllBills();
+    return bills.where((b) => b.createdAt.isAfter(date)).toList();
   }
 
   // Get day bills
   Future<List<BillModel>> getDayBills(int year, int month, int day) async {
-    final db = await _db;
-    final startOfDay = DateTime(year, month, day).toIso8601String();
-    final endOfDay = DateTime(year, month, day, 23, 59, 59).toIso8601String();
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      WHERE b.created_at >= ? AND b.created_at <= ?
-      ORDER BY b.created_at DESC
-    ''',
-      [startOfDay, endOfDay],
-    );
-    return maps.map((map) => BillModel.fromMap(map)).toList();
+    final bills = await getAllBills();
+    return bills.where((b) {
+      return b.createdAt.year == year &&
+          b.createdAt.month == month &&
+          b.createdAt.day == day;
+    }).toList();
   }
 
   // Get month bills
   Future<List<BillModel>> getMonthBills(int year, int month) async {
-    final db = await _db;
-    final startOfMonth = DateTime(year, month, 1).toIso8601String();
-    final endOfMonth = DateTime(
-      year,
-      month + 1,
-      0,
-      23,
-      59,
-      59,
-    ).toIso8601String();
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      WHERE b.created_at >= ? AND b.created_at <= ?
-      ORDER BY b.created_at DESC
-    ''',
-      [startOfMonth, endOfMonth],
-    );
-    return maps.map((map) => BillModel.fromMap(map)).toList();
+    final bills = await getAllBills();
+    return bills.where((b) {
+      return b.createdAt.year == year && b.createdAt.month == month;
+    }).toList();
   }
 
   // Get recent bills
   Future<List<BillModel>> getRecentBills(int limit) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      ORDER BY b.created_at DESC
-      LIMIT ?
-    ''',
-      [limit],
-    );
-    return maps.map((map) => BillModel.fromMap(map)).toList();
+    final bills = await getAllBills();
+    bills.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return bills.take(limit).toList();
   }
 
   // Get customer bills
   Future<List<BillModel>> getCustomerBills(int customerId) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      WHERE b.customer_id = ?
-      ORDER BY b.created_at DESC
-    ''',
-      [customerId],
-    );
-    return maps.map((map) => BillModel.fromMap(map)).toList();
+    final bills = await getAllBills();
+    return bills.where((b) => b.customerId == customerId).toList();
   }
 
   // Get worker bills
   Future<List<BillModel>> getWorkerBills(int workerId) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-      '''
-      SELECT b.*, c.name as customer_name, c.phone as customer_phone,
-             w.name as worker_name
-      FROM bills b
-      LEFT JOIN customers c ON b.customer_id = c.id
-      LEFT JOIN workers w ON b.worker_id = w.id
-      WHERE b.worker_id = ?
-      ORDER BY b.created_at DESC
-    ''',
-      [workerId],
-    );
-    return maps.map((map) => BillModel.fromMap(map)).toList();
+    final bills = await getAllBills();
+    return bills.where((b) => b.workerId == workerId).toList();
   }
 
-  // Get daily earnings summary
-  Future<double> getDailyEarnings(DateTime date) async {
-    final db = await _db;
-    final startOfDay = DateTime(
-      date.year,
-      date.month,
-      date.day,
-    ).toIso8601String();
-    final endOfDay = DateTime(
-      date.year,
-      date.month,
-      date.day,
-      23,
-      59,
-      59,
-    ).toIso8601String();
-    final result = await db.rawQuery(
-      '''
-      SELECT SUM(final_amount) as total 
-      FROM bills 
-      WHERE created_at >= ? AND created_at <= ? AND payment_status = 'paid'
-    ''',
-      [startOfDay, endOfDay],
+  // Helper: Update customer spent
+  Future<void> _updateCustomerSpent(int customerId, double amount) async {
+    final customers = await DatabaseService.getAll(
+      DatabaseService.keyCustomers,
     );
-    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
-  }
-
-  // Get revenue by payment method
-  Future<Map<String, double>> getRevenueByPaymentMethod(
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
-    final db = await _db;
-    final result = await db.rawQuery(
-      '''
-      SELECT payment_method, SUM(final_amount) as total
-      FROM bills
-      WHERE created_at >= ? AND created_at <= ? AND payment_status = 'paid'
-      GROUP BY payment_method
-    ''',
-      [startDate.toIso8601String(), endDate.toIso8601String()],
+    final customer = customers.firstWhere(
+      (c) => c['id'] == customerId,
+      orElse: () => {},
     );
-    final Map<String, double> revenue = {};
-    for (var row in result) {
-      final method = row['payment_method'] as String? ?? 'Cash';
-      revenue[method] = (row['total'] as num?)?.toDouble() ?? 0.0;
+    if (customer.isNotEmpty) {
+      final currentSpent = (customer['total_spent'] as num?)?.toDouble() ?? 0.0;
+      final newSpent = currentSpent + amount;
+      await DatabaseService.update(DatabaseService.keyCustomers, customerId, {
+        'total_spent': newSpent > 0 ? newSpent : 0.0,
+      });
     }
-    return revenue;
   }
 }

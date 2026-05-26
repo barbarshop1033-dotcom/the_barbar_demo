@@ -3,7 +3,6 @@ import 'package:path/path.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:the_barbar/widgets/empty_state_widget.dart';
 import '../../config/theme.dart';
 import '../../providers/dashboard_provider.dart';
 import '../../providers/subscription_provider.dart';
@@ -18,7 +17,7 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('The Barber'),
+        title: const Text('The Barber - Demo'),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
@@ -28,12 +27,8 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
       drawer: const AppDrawer(),
-      body: Consumer2<SubscriptionProvider, DashboardProvider>(
-        builder: (context, subscription, dashboard, _) {
-          if (subscription.isExpired) {
-            return _buildExpiredView(context, subscription);
-          }
-
+      body: Consumer<DashboardProvider>(
+        builder: (context, dashboard, _) {
           return RefreshIndicator(
             onRefresh: () async {
               await dashboard.loadDashboardData();
@@ -44,8 +39,8 @@ class DashboardScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Trial/Plan Status Banner
-                  _buildStatusBanner(subscription),
+                  // Demo Mode Banner (instead of subscription banner)
+                  _buildDemoBanner(),
                   const SizedBox(height: 16),
 
                   // Today's Summary
@@ -168,7 +163,7 @@ class DashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   if (dashboard.recentCustomers.isEmpty)
-                    const EmptyStateWidget(
+                    _buildEmptyState(
                       icon: Icons.people_outline,
                       message: 'No customers yet',
                     )
@@ -183,23 +178,29 @@ class DashboardScreen extends StatelessWidget {
                           margin: const EdgeInsets.only(bottom: 8),
                           child: ListTile(
                             leading: CircleAvatar(
-                              backgroundColor:
-                                  BarberTheme.accentColor.withOpacity(0.2),
-                              child: const Icon(Icons.person,
-                                  color: BarberTheme.accentColor),
+                              backgroundColor: BarberTheme.accentColor
+                                  .withOpacity(0.2),
+                              child: const Icon(
+                                Icons.person,
+                                color: BarberTheme.accentColor,
+                              ),
                             ),
                             title: Text(
                               customer.name,
                               style: GoogleFonts.poppins(
-                                  color: BarberTheme.textPrimary),
+                                color: BarberTheme.textPrimary,
+                              ),
                             ),
                             subtitle: Text(
                               customer.phone,
                               style: GoogleFonts.poppins(
-                                  color: BarberTheme.textSecondary),
+                                color: BarberTheme.textSecondary,
+                              ),
                             ),
-                            trailing: const Icon(Icons.chevron_right,
-                                color: BarberTheme.textSecondary),
+                            trailing: const Icon(
+                              Icons.chevron_right,
+                              color: BarberTheme.textSecondary,
+                            ),
                             onTap: () {
                               Navigator.pushNamed(
                                 context,
@@ -221,174 +222,96 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBanner(SubscriptionProvider subscription) {
-    if (subscription.isTrial) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              BarberTheme.accentColor.withOpacity(0.2),
-              BarberTheme.accentColor.withOpacity(0.1),
-            ],
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: BarberTheme.accentColor.withOpacity(0.3)),
+  Widget _buildDemoBanner() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            BarberTheme.accentColor.withOpacity(0.2),
+            BarberTheme.accentColor.withOpacity(0.05),
+          ],
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: BarberTheme.accentColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.timer, color: BarberTheme.accentColor),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: BarberTheme.accentColor.withOpacity(0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: BarberTheme.accentColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Trial Period',
-                    style: GoogleFonts.poppins(
-                      color: BarberTheme.accentColor,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Text(
-                    '${subscription.remainingDays} days remaining',
-                    style: GoogleFonts.poppins(
-                      color: BarberTheme.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
+            child: const Icon(
+              Icons.desktop_mac_rounded,
+              color: BarberTheme.accentColor,
             ),
-            ElevatedButton(
-              onPressed: () =>
-                  Navigator.pushNamed(context as BuildContext, '/subscription'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BarberTheme.accentColor,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              ),
-              child: Text(
-                'Upgrade',
-                style: GoogleFonts.poppins(
-                  color: BarberTheme.primaryColor,
-                  fontWeight: FontWeight.w600,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Demo Mode',
+                  style: GoogleFonts.poppins(
+                    color: BarberTheme.accentColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                 ),
-              ),
+                Text(
+                  'Explore all features with pre-loaded demo data',
+                  style: GoogleFonts.poppins(
+                    color: BarberTheme.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      );
-    } else if (subscription.isActive) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              BarberTheme.successColor.withOpacity(0.2),
-              BarberTheme.successColor.withOpacity(0.1),
-            ],
           ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: BarberTheme.successColor.withOpacity(0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: BarberTheme.successColor.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.check_circle,
-                  color: BarberTheme.successColor),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: BarberTheme.successColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${subscription.plan?.toUpperCase() ?? 'Active'} Plan',
-                    style: GoogleFonts.poppins(
-                      color: BarberTheme.successColor,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Text(
-                    '${subscription.remainingDays} days remaining',
-                    style: GoogleFonts.poppins(
-                      color: BarberTheme.textSecondary,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
+            child: Text(
+              'PREMIUM',
+              style: GoogleFonts.poppins(
+                color: BarberTheme.successColor,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
               ),
             ),
-          ],
-        ),
-      );
-    }
-    return const SizedBox.shrink();
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildExpiredView(
-      BuildContext context, SubscriptionProvider subscription) {
+  Widget _buildEmptyState({required IconData icon, required String message}) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.lock_outline,
-              size: 80,
-              color: BarberTheme.dangerColor.withOpacity(0.5),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              subscription.status == 'trial_expired'
-                  ? 'Trial Expired'
-                  : 'Plan Expired',
-              style: GoogleFonts.poppins(
-                color: BarberTheme.textPrimary,
-                fontSize: 24,
-                fontWeight: FontWeight.w600,
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: BarberTheme.cardColor,
               ),
+              child: Icon(icon, color: BarberTheme.textSecondary, size: 30),
             ),
             const SizedBox(height: 12),
             Text(
-              'Please subscribe to continue using the app',
-              textAlign: TextAlign.center,
+              message,
               style: GoogleFonts.poppins(
                 color: BarberTheme.textSecondary,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/subscription'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: BarberTheme.accentColor,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              ),
-              child: Text(
-                'View Plans',
-                style: GoogleFonts.poppins(
-                  color: BarberTheme.primaryColor,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
+                fontSize: 14,
               ),
             ),
           ],

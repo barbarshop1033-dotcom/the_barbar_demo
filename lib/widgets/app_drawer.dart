@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../config/theme.dart';
-import '../providers/auth_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/customer_provider.dart';
 import '../providers/udhaar_provider.dart';
@@ -12,7 +11,6 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
     final subscription = context.watch<SubscriptionProvider>();
 
     return Drawer(
@@ -75,9 +73,9 @@ class AppDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Shop Name
+                  // Shop Name (Demo Data)
                   Text(
-                    auth.shopName,
+                    'The Barber Demo',
                     style: GoogleFonts.playfairDisplay(
                       color: BarberTheme.accentColor,
                       fontSize: 22,
@@ -89,9 +87,9 @@ class AppDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
 
-                  // Owner Name
+                  // Owner Name (Demo Data)
                   Text(
-                    auth.ownerName,
+                    'Demo Owner',
                     style: GoogleFonts.poppins(
                       color: BarberTheme.textPrimary,
                       fontSize: 14,
@@ -100,9 +98,9 @@ class AppDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
 
-                  // Email
+                  // Email (Demo Data)
                   Text(
-                    auth.shopEmail,
+                    'demo@thebarber.com',
                     style: GoogleFonts.poppins(
                       color: BarberTheme.textSecondary,
                       fontSize: 12,
@@ -270,89 +268,39 @@ class AppDrawer extends StatelessWidget {
               ),
             ),
 
-            // Logout Button
+            // Demo Notice (instead of Sign Out button)
             Padding(
               padding: const EdgeInsets.all(16),
-              child: InkWell(
-                onTap: () async {
-                  final confirm = await showDialog<bool>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      backgroundColor: BarberTheme.cardColor,
-                      title: Text(
-                        'Sign Out',
-                        style: GoogleFonts.poppins(
-                          color: BarberTheme.textPrimary,
-                        ),
-                      ),
-                      content: Text(
-                        'Are you sure you want to sign out?',
-                        style: GoogleFonts.poppins(
-                          color: BarberTheme.textSecondary,
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: Text(
-                            'Cancel',
-                            style: GoogleFonts.poppins(
-                              color: BarberTheme.textSecondary,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text(
-                            'Sign Out',
-                            style: GoogleFonts.poppins(
-                              color: BarberTheme.dangerColor,
-                            ),
-                          ),
-                        ),
-                      ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 20,
+                ),
+                decoration: BoxDecoration(
+                  color: BarberTheme.accentColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: BarberTheme.accentColor.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.desktop_mac_outlined,
+                      color: BarberTheme.accentColor,
+                      size: 20,
                     ),
-                  );
-
-                  if (confirm == true) {
-                    await auth.signOut();
-                    if (context.mounted) {
-                      Navigator.pushReplacementNamed(context, '/login');
-                    }
-                  }
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 14,
-                    horizontal: 20,
-                  ),
-                  decoration: BoxDecoration(
-                    color: BarberTheme.dangerColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: BarberTheme.dangerColor.withOpacity(0.3),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Demo Mode',
+                      style: GoogleFonts.poppins(
+                        color: BarberTheme.accentColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.logout_rounded,
-                        color: BarberTheme.dangerColor,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Sign Out',
-                        style: GoogleFonts.poppins(
-                          color: BarberTheme.dangerColor,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
             ),
@@ -360,12 +308,24 @@ class AppDrawer extends StatelessWidget {
             // Version
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'v1.0.0 - The Barber',
-                style: GoogleFonts.poppins(
-                  color: BarberTheme.textSecondary.withOpacity(0.5),
-                  fontSize: 11,
-                ),
+              child: Column(
+                children: [
+                  Text(
+                    'v1.0.0 - The Barber',
+                    style: GoogleFonts.poppins(
+                      color: BarberTheme.textSecondary.withOpacity(0.5),
+                      fontSize: 11,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Demo Version',
+                    style: GoogleFonts.poppins(
+                      color: BarberTheme.accentColor.withOpacity(0.5),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -511,5 +471,3 @@ class AppDrawer extends StatelessWidget {
     );
   }
 }
-
-// Add these imports at the top

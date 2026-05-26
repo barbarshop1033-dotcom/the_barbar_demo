@@ -5,7 +5,7 @@ class DatabaseService {
   static SharedPreferences? _prefs;
   static bool _isInitialized = false;
 
-  // PUBLIC KEYS - These are accessible by other services
+  // Public keys for other services
   static const String keyCustomers = 'demo_customers';
   static const String keyServices = 'demo_services';
   static const String keyWorkers = 'demo_workers';
@@ -16,7 +16,6 @@ class DatabaseService {
   static const String keyVisits = 'demo_visits';
   static const String keyExpenses = 'demo_expenses';
   static const String keyShopSettings = 'demo_shop_settings';
-  static const String keyDataSeeded = 'demo_data_seeded';
 
   static Future<void> initialize() async {
     if (_isInitialized) return;
@@ -91,71 +90,5 @@ class DatabaseService {
     } catch (e) {
       return null;
     }
-  }
-
-  // ========== SPECIFIC QUERIES ==========
-
-  static Future<List<Map<String, dynamic>>> getCustomerBills(
-    int customerId,
-  ) async {
-    final bills = await getAll(keyBills);
-    return bills.where((bill) => bill['customer_id'] == customerId).toList();
-  }
-
-  static Future<List<Map<String, dynamic>>> getCustomerUdhaar(
-    int customerId,
-  ) async {
-    final udhaar = await getAll(keyUdhaar);
-    return udhaar.where((u) => u['customer_id'] == customerId).toList();
-  }
-
-  static Future<List<Map<String, dynamic>>> getCustomerVisits(
-    int customerId,
-  ) async {
-    final visits = await getAll(keyVisits);
-    return visits.where((v) => v['customer_id'] == customerId).toList();
-  }
-
-  static Future<List<Map<String, dynamic>>> getTodayBills() async {
-    final bills = await getAll(keyBills);
-    final today = DateTime.now().toIso8601String().substring(0, 10);
-    return bills.where((bill) {
-      final billDate = bill['created_at']?.toString().substring(0, 10) ?? '';
-      return billDate == today;
-    }).toList();
-  }
-
-  static Future<double> getTodayEarnings() async {
-    final todayBills = await getTodayBills();
-    double total = 0.0;
-    for (var bill in todayBills) {
-      total += (bill['final_amount'] as num).toDouble();
-    }
-    return total;
-  }
-
-  static Future<int> getTodayCustomers() async {
-    final todayBills = await getTodayBills();
-    final Set<int?> uniqueCustomers = {};
-    for (var bill in todayBills) {
-      uniqueCustomers.add(bill['customer_id'] as int?);
-    }
-    return uniqueCustomers.length;
-  }
-
-  static Future<double> getPendingUdhaar() async {
-    final udhaar = await getAll(keyUdhaar);
-    double total = 0.0;
-    for (var u in udhaar) {
-      final totalAmount = (u['total_amount'] as num).toDouble();
-      final paidAmount = (u['paid_amount'] as num).toDouble();
-      total += (totalAmount - paidAmount);
-    }
-    return total;
-  }
-
-  // This property exists for compatibility with old code
-  static DatabaseService get instance {
-    throw UnsupportedError('Use static methods directly with DatabaseService');
   }
 }

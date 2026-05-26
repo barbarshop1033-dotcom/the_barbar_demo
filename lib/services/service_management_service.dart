@@ -1,170 +1,153 @@
-import 'package:sqflite/sqflite.dart';
 import '../models/service_model.dart';
 import 'database_service.dart';
 
 class ServiceManagementService {
-  // Get database instance
-  Future<Database> get _db async => DatabaseService.database;
-
   // Get all services
   Future<List<ServiceModel>> getAllServices() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'services',
-      orderBy: 'category ASC, name ASC',
-    );
+    final maps = await DatabaseService.getAll(DatabaseService.keyServices);
+    maps.sort((a, b) => (a['category'] ?? '').compareTo(b['category'] ?? ''));
     return maps.map((map) => ServiceModel.fromMap(map)).toList();
   }
 
   // Get active services
   Future<List<ServiceModel>> getActiveServices() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'services',
-      where: 'is_active = ?',
-      whereArgs: [1],
-      orderBy: 'category ASC, name ASC',
-    );
-    return maps.map((map) => ServiceModel.fromMap(map)).toList();
+    final services = await getAllServices();
+    return services.where((s) => s.isActive).toList();
   }
 
-  // Get custom services (user-created)
+  // Get custom services
   Future<List<ServiceModel>> getCustomServices() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'services',
-      where: 'is_custom = ?',
-      whereArgs: [1],
-      orderBy: 'name ASC',
-    );
-    return maps.map((map) => ServiceModel.fromMap(map)).toList();
+    final services = await getAllServices();
+    return services.where((s) => s.isCustom).toList();
   }
 
   // Get service by ID
   Future<ServiceModel?> getServiceById(int id) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'services',
-      where: 'id = ?',
-      whereArgs: [id],
+    final services = await getAllServices();
+    return services.firstWhere(
+      (s) => s.id == id,
+      orElse: () => throw Exception('Service not found'),
     );
-    if (maps.isEmpty) return null;
-    return ServiceModel.fromMap(maps.first);
   }
 
   // Get services by category
   Future<List<ServiceModel>> getServicesByCategory(String category) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'services',
-      where: 'category = ? AND is_active = ?',
-      whereArgs: [category, 1],
-      orderBy: 'name ASC',
-    );
-    return maps.map((map) => ServiceModel.fromMap(map)).toList();
+    final services = await getAllServices();
+    return services.where((s) => s.category == category && s.isActive).toList();
   }
 
-  // Add new service
+  // Add service
   Future<int> addService(ServiceModel service) async {
-    final db = await _db;
-    return await db.insert('services', service.toMap());
+    final now = DateTime.now().toIso8601String();
+    final serviceMap = {
+      ...service.toMap(),
+      'created_at': now,
+      'updated_at': now,
+    };
+    serviceMap.remove('id');
+    return await DatabaseService.insert(
+      DatabaseService.keyServices,
+      serviceMap,
+    );
   }
 
   // Update service
   Future<bool> updateService(ServiceModel service) async {
-    final db = await _db;
-    final updated = service.copyWith(updatedAt: DateTime.now());
-    final count = await db.update(
-      'services',
-      updated.toMap(),
-      where: 'id = ?',
-      whereArgs: [service.id],
+    final updatedMap = {
+      ...service.toMap(),
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    final result = await DatabaseService.update(
+      DatabaseService.keyServices,
+      service.id!,
+      updatedMap,
     );
-    return count > 0;
+    return result > 0;
   }
 
   // Delete service
   Future<bool> deleteService(int id) async {
-    final db = await _db;
-    // Check if service is default (not custom)
     final service = await getServiceById(id);
     if (service != null && !service.isCustom) {
-      // Instead of deleting, just deactivate
+      // Deactivate instead of delete for default services
       return await updateService(service.copyWith(isActive: false));
     }
-    final count = await db.delete(
-      'services',
-      where: 'id = ?',
-      whereArgs: [id],
+    final result = await DatabaseService.delete(
+      DatabaseService.keyServices,
+      id,
     );
-    return count > 0;
+    return result > 0;
   }
 
-  // Toggle service active status
+  // Toggle service status
   Future<bool> toggleServiceStatus(int id, bool isActive) async {
-    final db = await _db;
-    final count = await db.update(
-      'services',
-      {
-        'is_active': isActive ? 1 : 0,
-        'updated_at': DateTime.now().toIso8601String(),
-      },
-      where: 'id = ?',
-      whereArgs: [id],
+    return await updateService(
+      (await getServiceById(id))!.copyWith(isActive: isActive),
     );
-    return count > 0;
   }
 
-  // Get all categories
+  // Get categories
   Future<List<String>> getCategories() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery(
-        'SELECT DISTINCT category FROM services WHERE category IS NOT NULL ORDER BY category');
-    return maps.map((map) => map['category'] as String).toList();
+    final services = await getAllServices();
+    final categories = services
+        .map((s) => s.category)
+        .where((c) => c != null)
+        .cast<String>()
+        .toSet()
+        .toList();
+    categories.sort();
+    return categories;
   }
 
   // Search services
   Future<List<ServiceModel>> searchServices(String query) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'services',
-      where: 'name LIKE ? OR category LIKE ?',
-      whereArgs: ['%$query%', '%$query%'],
-      orderBy: 'name ASC',
-    );
-    return maps.map((map) => ServiceModel.fromMap(map)).toList();
+    final services = await getAllServices();
+    final lowerQuery = query.toLowerCase();
+    return services.where((s) {
+      return s.name.toLowerCase().contains(lowerQuery) ||
+          (s.category?.toLowerCase().contains(lowerQuery) ?? false);
+    }).toList();
   }
 
-  // Get popular services (most used in bills)
+  // Get popular services
   Future<List<Map<String, dynamic>>> getPopularServices() async {
-    final db = await _db;
-    return await db.rawQuery('''
-      SELECT s.id, s.name, s.category, COUNT(bi.id) as usage_count, 
-             SUM(bi.total) as total_revenue
-      FROM services s
-      LEFT JOIN bill_items bi ON s.id = bi.service_id
-      WHERE s.is_active = 1
-      GROUP BY s.id
-      ORDER BY usage_count DESC
-      LIMIT 10
-    ''');
+    final bills = await DatabaseService.getAll(DatabaseService.keyBills);
+    final items = await DatabaseService.getAll(DatabaseService.keyBillItems);
+    final services = await getAllServices();
+
+    final Map<int, int> serviceCount = {};
+    for (var item in items) {
+      final serviceId = item['service_id'] as int;
+      serviceCount[serviceId] = (serviceCount[serviceId] ?? 0) + 1;
+    }
+
+    final List<Map<String, dynamic>> popular = [];
+    for (var service in services) {
+      final count = serviceCount[service.id] ?? 0;
+      if (count > 0) {
+        popular.add({
+          'id': service.id,
+          'name': service.name,
+          'category': service.category,
+          'usage_count': count,
+          'total_revenue': count * service.price,
+        });
+      }
+    }
+
+    popular.sort(
+      (a, b) => (b['usage_count'] as int).compareTo(a['usage_count'] as int),
+    );
+    return popular.take(10).toList();
   }
 
   // Bulk update prices
   Future<void> bulkUpdatePrices(Map<int, double> priceUpdates) async {
-    final db = await _db;
-    final batch = db.batch();
-    final now = DateTime.now().toIso8601String();
-
     for (var entry in priceUpdates.entries) {
-      batch.update(
-        'services',
-        {'price': entry.value, 'updated_at': now},
-        where: 'id = ?',
-        whereArgs: [entry.key],
-      );
+      final service = await getServiceById(entry.key);
+      if (service != null) {
+        await updateService(service.copyWith(price: entry.value));
+      }
     }
-
-    await batch.commit(noResult: true);
   }
 }

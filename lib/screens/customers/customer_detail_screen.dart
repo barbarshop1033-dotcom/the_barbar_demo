@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:the_barbar/widgets/empty_state_widget.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../models/bill_model.dart';
 import '../../models/udhaar_model.dart';
@@ -68,13 +67,17 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         title: _customer?.name ?? 'Customer Details',
         actions: [
           IconButton(
-            icon:
-                const Icon(Icons.edit_rounded, color: BarberTheme.accentColor),
+            icon: const Icon(
+              Icons.edit_rounded,
+              color: BarberTheme.accentColor,
+            ),
             onPressed: () => _showEditDialog(),
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline_rounded,
-                color: BarberTheme.dangerColor),
+            icon: const Icon(
+              Icons.delete_outline_rounded,
+              color: BarberTheme.dangerColor,
+            ),
             onPressed: () => _deleteCustomer(),
           ),
         ],
@@ -82,54 +85,55 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
       body: _isLoading
           ? const LoadingWidget(message: 'Loading customer details...')
           : _customer == null
-              ? Center(
-                  child: Text(
-                    'Customer not found',
-                    style:
-                        GoogleFonts.poppins(color: BarberTheme.textSecondary),
+          ? Center(
+              child: Text(
+                'Customer not found',
+                style: GoogleFonts.poppins(color: BarberTheme.textSecondary),
+              ),
+            )
+          : Column(
+              children: [
+                // Customer Profile Header
+                _buildProfileHeader(),
+
+                // Quick Action Buttons
+                _buildQuickActions(),
+
+                // Tabs
+                Container(
+                  color: BarberTheme.primaryColor,
+                  child: TabBar(
+                    controller: _tabController,
+                    indicatorColor: BarberTheme.accentColor,
+                    labelColor: BarberTheme.accentColor,
+                    unselectedLabelColor: BarberTheme.textSecondary,
+                    labelStyle: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    tabs: const [
+                      Tab(text: 'Info'),
+                      Tab(text: 'Visits'),
+                      Tab(text: 'Bills'),
+                      Tab(text: 'Udhaar'),
+                    ],
                   ),
-                )
-              : Column(
-                  children: [
-                    // Customer Profile Header
-                    _buildProfileHeader(),
-
-                    // Quick Action Buttons
-                    _buildQuickActions(),
-
-                    // Tabs
-                    Container(
-                      color: BarberTheme.primaryColor,
-                      child: TabBar(
-                        controller: _tabController,
-                        indicatorColor: BarberTheme.accentColor,
-                        labelColor: BarberTheme.accentColor,
-                        unselectedLabelColor: BarberTheme.textSecondary,
-                        labelStyle: GoogleFonts.poppins(
-                            fontSize: 13, fontWeight: FontWeight.w600),
-                        tabs: const [
-                          Tab(text: 'Info'),
-                          Tab(text: 'Visits'),
-                          Tab(text: 'Bills'),
-                          Tab(text: 'Udhaar'),
-                        ],
-                      ),
-                    ),
-
-                    // Tab Content
-                    Expanded(
-                      child: TabBarView(
-                        controller: _tabController,
-                        children: [
-                          _buildInfoTab(),
-                          _buildVisitsTab(),
-                          _buildBillsTab(),
-                          _buildUdhaarTab(),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
+
+                // Tab Content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildInfoTab(),
+                      _buildVisitsTab(),
+                      _buildBillsTab(),
+                      _buildUdhaarTab(),
+                    ],
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
@@ -143,10 +147,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            BarberTheme.primaryColor,
-            BarberTheme.surfaceColor,
-          ],
+          colors: [BarberTheme.primaryColor, BarberTheme.surfaceColor],
         ),
       ),
       child: Column(
@@ -168,8 +169,11 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
                     ),
                   ],
                 ),
-                child: const Icon(Icons.person_rounded,
-                    color: BarberTheme.accentColor, size: 48),
+                child: const Icon(
+                  Icons.person_rounded,
+                  color: BarberTheme.accentColor,
+                  size: 48,
+                ),
               ),
               if (customer.isRegular)
                 Positioned(
@@ -181,8 +185,11 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
                       shape: BoxShape.circle,
                       color: BarberTheme.accentColor,
                     ),
-                    child: const Icon(Icons.star_rounded,
-                        color: BarberTheme.primaryColor, size: 18),
+                    child: const Icon(
+                      Icons.star_rounded,
+                      color: BarberTheme.primaryColor,
+                      size: 18,
+                    ),
                   ),
                 ),
             ],
@@ -214,18 +221,23 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildStat('Visits', '${customer.visitCount}',
-                  Icons.calendar_today_rounded),
               _buildStat(
-                  'Spent',
-                  'Rs ${currencyFormat.format(customer.totalSpent)}',
-                  Icons.monetization_on_rounded),
+                'Visits',
+                '${customer.visitCount}',
+                Icons.calendar_today_rounded,
+              ),
               _buildStat(
-                  'Last Visit',
-                  customer.lastVisitDate != null
-                      ? DateFormat('dd/MM/yy').format(customer.lastVisitDate!)
-                      : 'N/A',
-                  Icons.history_rounded),
+                'Spent',
+                'Rs ${currencyFormat.format(customer.totalSpent)}',
+                Icons.monetization_on_rounded,
+              ),
+              _buildStat(
+                'Last Visit',
+                customer.lastVisitDate != null
+                    ? DateFormat('dd/MM/yy').format(customer.lastVisitDate!)
+                    : 'N/A',
+                Icons.history_rounded,
+              ),
             ],
           ),
         ],
@@ -266,11 +278,20 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         children: [
           _buildActionButton(Icons.call_rounded, 'Call', () => _makeCall()),
           _buildActionButton(
-              Icons.message_rounded, 'WhatsApp', () => _sendWhatsApp()),
+            Icons.message_rounded,
+            'WhatsApp',
+            () => _sendWhatsApp(),
+          ),
           _buildActionButton(
-              Icons.receipt_long_rounded, 'New Bill', () => _createBill()),
+            Icons.receipt_long_rounded,
+            'New Bill',
+            () => _createBill(),
+          ),
           _buildActionButton(
-              Icons.book_rounded, 'Add Udhaar', () => _addUdhaar()),
+            Icons.book_rounded,
+            'Add Udhaar',
+            () => _addUdhaar(),
+          ),
         ],
       ),
     );
@@ -321,14 +342,20 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
             _buildInfoRow('Phone', customer.phone),
             if (customer.preferredWorker != null)
               _buildInfoRow('Preferred Barber', customer.preferredWorker!),
-            _buildInfoRow('Status',
-                customer.isRegular ? 'Regular Customer ⭐' : 'Regular'),
+            _buildInfoRow(
+              'Status',
+              customer.isRegular ? 'Regular Customer ⭐' : 'Regular',
+            ),
             _buildInfoRow('Total Visits', '${customer.visitCount}'),
-            _buildInfoRow('Total Spent',
-                'Rs ${NumberFormat('#,##0').format(customer.totalSpent)}'),
+            _buildInfoRow(
+              'Total Spent',
+              'Rs ${NumberFormat('#,##0').format(customer.totalSpent)}',
+            ),
             if (customer.lastVisitDate != null)
-              _buildInfoRow('Last Visit',
-                  DateFormat('dd MMMM yyyy').format(customer.lastVisitDate!)),
+              _buildInfoRow(
+                'Last Visit',
+                DateFormat('dd MMMM yyyy').format(customer.lastVisitDate!),
+              ),
           ]),
 
           const SizedBox(height: 16),
@@ -339,7 +366,9 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
             _buildInfoCard('Preferences', [
               if (customer.favoriteHairstyle != null)
                 _buildInfoRow(
-                    'Favorite Hairstyle', customer.favoriteHairstyle!),
+                  'Favorite Hairstyle',
+                  customer.favoriteHairstyle!,
+                ),
               if (customer.allergyNotes != null)
                 _buildInfoRow('Allergy Notes', customer.allergyNotes!),
             ]),
@@ -423,7 +452,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
 
   Widget _buildVisitsTab() {
     if (_visits.isEmpty) {
-      return EmptyStateWidget(
+      return _buildEmptyState(
         icon: Icons.assignment_rounded,
         title: 'No Visits',
         message: 'No visit history for this customer',
@@ -481,34 +510,43 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
               spacing: 6,
               runSpacing: 4,
               children: visit.services
-                  .map((service) => Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: BarberTheme.accentColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
+                  .map(
+                    (service) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: BarberTheme.accentColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        service,
+                        style: GoogleFonts.poppins(
+                          color: BarberTheme.accentColor,
+                          fontSize: 11,
                         ),
-                        child: Text(
-                          service,
-                          style: GoogleFonts.poppins(
-                            color: BarberTheme.accentColor,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
             if (visit.workerName != null) ...[
               const SizedBox(height: 8),
               Row(
                 children: [
-                  const Icon(Icons.person_outline,
-                      color: BarberTheme.textSecondary, size: 14),
+                  const Icon(
+                    Icons.person_outline,
+                    color: BarberTheme.textSecondary,
+                    size: 14,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     visit.workerName!,
                     style: GoogleFonts.poppins(
-                        color: BarberTheme.textSecondary, fontSize: 12),
+                      color: BarberTheme.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -518,7 +556,9 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
               Text(
                 visit.notes!,
                 style: GoogleFonts.poppins(
-                    color: BarberTheme.textSecondary, fontSize: 12),
+                  color: BarberTheme.textSecondary,
+                  fontSize: 12,
+                ),
               ),
             ],
           ],
@@ -538,7 +578,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         final bills = snapshot.data ?? [];
 
         if (bills.isEmpty) {
-          return EmptyStateWidget(
+          return _buildEmptyState(
             icon: Icons.receipt_long_rounded,
             title: 'No Bills',
             message: 'No bills for this customer yet',
@@ -570,8 +610,9 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
 
   Widget _buildUdhaarTab() {
     return FutureBuilder<List<UdhaarModel>>(
-      future:
-          context.read<UdhaarProvider>().getCustomerUdhaar(widget.customerId),
+      future: context.read<UdhaarProvider>().getCustomerUdhaar(
+        widget.customerId,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const LoadingWidget(message: 'Loading udhaar...');
@@ -580,7 +621,7 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         final udhaars = snapshot.data ?? [];
 
         if (udhaars.isEmpty) {
-          return EmptyStateWidget(
+          return _buildEmptyState(
             icon: Icons.book_rounded,
             title: 'No Udhaar',
             message: 'No pending payments for this customer',
@@ -609,6 +650,223 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     );
   }
 
+  // Inline Empty State Widget (to avoid missing dependency)
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String message,
+    String? actionLabel,
+    VoidCallback? onAction,
+  }) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: BarberTheme.cardColor,
+              ),
+              child: Icon(icon, color: BarberTheme.textSecondary, size: 40),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: GoogleFonts.poppins(
+                color: BarberTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(
+                color: BarberTheme.textSecondary,
+                fontSize: 14,
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: onAction,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: BarberTheme.accentColor,
+                  foregroundColor: BarberTheme.primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(actionLabel),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Inline AddEditCustomerDialog (to avoid missing dependency)
+  void _showEditDialog() {
+    final customer = _customer!;
+    final nameController = TextEditingController(text: customer.name);
+    final phoneController = TextEditingController(text: customer.phone);
+    final notesController = TextEditingController(text: customer.notes ?? '');
+    final favHairstyleController = TextEditingController(
+      text: customer.favoriteHairstyle ?? '',
+    );
+    final allergyController = TextEditingController(
+      text: customer.allergyNotes ?? '',
+    );
+    bool isRegular = customer.isRegular;
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: BarberTheme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Edit Customer',
+          style: GoogleFonts.poppins(color: BarberTheme.textPrimary),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Name',
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+                style: GoogleFonts.poppins(),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(
+                  labelText: 'Phone',
+                  prefixIcon: Icon(Icons.phone_outlined),
+                ),
+                style: GoogleFonts.poppins(),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                decoration: const InputDecoration(
+                  labelText: 'Notes',
+                  prefixIcon: Icon(Icons.note_outlined),
+                ),
+                style: GoogleFonts.poppins(),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: favHairstyleController,
+                decoration: const InputDecoration(
+                  labelText: 'Favorite Hairstyle',
+                  prefixIcon: Icon(Icons.cut_outlined),
+                ),
+                style: GoogleFonts.poppins(),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: allergyController,
+                decoration: const InputDecoration(
+                  labelText: 'Allergy Notes',
+                  prefixIcon: Icon(Icons.warning_amber_rounded),
+                ),
+                style: GoogleFonts.poppins(),
+                maxLines: 2,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Checkbox(
+                    value: isRegular,
+                    onChanged: (val) {
+                      isRegular = val ?? false;
+                      (context as Element).markNeedsBuild();
+                    },
+                    activeColor: BarberTheme.accentColor,
+                  ),
+                  Text(
+                    'Regular Customer',
+                    style: GoogleFonts.poppins(color: BarberTheme.textPrimary),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: BarberTheme.textSecondary),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final updatedCustomer = CustomerModel(
+                id: customer.id,
+                name: nameController.text.trim(),
+                phone: phoneController.text.trim(),
+                notes: notesController.text.trim().isEmpty
+                    ? null
+                    : notesController.text.trim(),
+                isRegular: isRegular,
+                totalSpent: customer.totalSpent,
+                visitCount: customer.visitCount,
+                favoriteHairstyle: favHairstyleController.text.trim().isEmpty
+                    ? null
+                    : favHairstyleController.text.trim(),
+                allergyNotes: allergyController.text.trim().isEmpty
+                    ? null
+                    : allergyController.text.trim(),
+                preferredWorker: customer.preferredWorker,
+                lastVisitDate: customer.lastVisitDate,
+                createdAt: customer.createdAt,
+                updatedAt: DateTime.now(),
+              );
+              await context.read<CustomerProvider>().updateCustomer(
+                updatedCustomer,
+              );
+              if (context.mounted) {
+                Navigator.pop(context);
+                _loadData();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: const Text('Customer updated'),
+                    backgroundColor: BarberTheme.successColor,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: BarberTheme.accentColor,
+              foregroundColor: BarberTheme.primaryColor,
+            ),
+            child: Text(
+              'Save',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _makeCall() async {
     final cleanPhone = _customer!.phone.replaceAll(RegExp(r'\D'), '');
     final Uri launchUri = Uri(scheme: 'tel', path: cleanPhone);
@@ -633,22 +891,15 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
     Navigator.pushNamed(context, '/udhaar');
   }
 
-  void _showEditDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AddEditCustomerDialog(customer: _customer),
-    ).then((_) {
-      _loadData();
-    });
-  }
-
   Future<void> _deleteCustomer() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: BarberTheme.cardColor,
-        title: Text('Delete Customer',
-            style: GoogleFonts.poppins(color: BarberTheme.dangerColor)),
+        title: Text(
+          'Delete Customer',
+          style: GoogleFonts.poppins(color: BarberTheme.dangerColor),
+        ),
         content: Text(
           'Are you sure you want to delete "${_customer!.name}"? This action cannot be undone and will delete all related data.',
           style: GoogleFonts.poppins(color: BarberTheme.textSecondary),
@@ -656,23 +907,29 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancel',
-                style: GoogleFonts.poppins(color: BarberTheme.textSecondary)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: BarberTheme.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-                backgroundColor: BarberTheme.dangerColor),
-            child:
-                Text('Delete', style: GoogleFonts.poppins(color: Colors.white)),
+              backgroundColor: BarberTheme.dangerColor,
+            ),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.poppins(color: Colors.white),
+            ),
           ),
         ],
       ),
     );
 
     if (confirm == true) {
-      final success =
-          await context.read<CustomerProvider>().deleteCustomer(_customer!.id!);
+      final success = await context.read<CustomerProvider>().deleteCustomer(
+        _customer!.id!,
+      );
       if (success && mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -680,8 +937,9 @@ class _CustomerDetailScreenState extends State<CustomerDetailScreen>
             content: const Text('Customer deleted'),
             backgroundColor: BarberTheme.dangerColor,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }

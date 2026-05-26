@@ -1,82 +1,125 @@
-import 'package:sqflite/sqflite.dart';
 import '../models/udhaar_model.dart';
 import 'database_service.dart';
 
 class UdhaarService {
-  // Get database instance
-  Future<Database> get _db async => DatabaseService.database;
-
-  // Get all udhaar entries with customer info
+  // Get all udhaar entries
   Future<List<UdhaarModel>> getAllUdhaar() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT u.*, c.name as customer_name, c.phone as customer_phone
-      FROM udhaar u
-      LEFT JOIN customers c ON u.customer_id = c.id
-      ORDER BY u.updated_at DESC
-    ''');
-    return maps.map((map) => UdhaarModel.fromMap(map)).toList();
+    final udhaar = await DatabaseService.getAll(DatabaseService.keyUdhaar);
+    final customers = await DatabaseService.getAll(
+      DatabaseService.keyCustomers,
+    );
+
+    return udhaar.map((u) {
+      final customer = customers.firstWhere(
+        (c) => c['id'] == u['customer_id'],
+        orElse: () => {},
+      );
+      return UdhaarModel.fromMap({
+        ...u,
+        'customer_name': customer['name'],
+        'customer_phone': customer['phone'],
+      });
+    }).toList();
   }
 
   // Get udhaar by ID
   Future<UdhaarModel?> getUdhaarById(int id) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT u.*, c.name as customer_name, c.phone as customer_phone
-      FROM udhaar u
-      LEFT JOIN customers c ON u.customer_id = c.id
-      WHERE u.id = ?
-    ''', [id]);
-    if (maps.isEmpty) return null;
-    return UdhaarModel.fromMap(maps.first);
+    final udhaar = await DatabaseService.getById(DatabaseService.keyUdhaar, id);
+    if (udhaar == null) return null;
+
+    final customers = await DatabaseService.getAll(
+      DatabaseService.keyCustomers,
+    );
+    final customer = customers.firstWhere(
+      (c) => c['id'] == udhaar['customer_id'],
+      orElse: () => {},
+    );
+
+    return UdhaarModel.fromMap({
+      ...udhaar,
+      'customer_name': customer['name'],
+      'customer_phone': customer['phone'],
+    });
   }
 
   // Get udhaar payments
   Future<List<UdhaarPayment>> getUdhaarPayments(int udhaarId) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'udhaar_payments',
-      where: 'udhaar_id = ?',
-      whereArgs: [udhaarId],
-      orderBy: 'payment_date DESC',
+    final payments = await DatabaseService.getAll(
+      DatabaseService.keyUdhaarPayments,
     );
-    return maps.map((map) => UdhaarPayment.fromMap(map)).toList();
+    return payments
+        .where((p) => p['udhaar_id'] == udhaarId)
+        .map((p) => UdhaarPayment.fromMap(p))
+        .toList();
   }
 
-  // Add new udhaar entry
+  // Add udhaar
   Future<int> addUdhaar(UdhaarModel udhaar) async {
-    final db = await _db;
-    return await db.insert('udhaar', udhaar.toMap());
+    final now = DateTime.now().toIso8601String();
+    final udhaarMap = {
+      'customer_id': udhaar.customerId,
+      'total_amount': udhaar.totalAmount,
+      'paid_amount': udhaar.paidAmount,
+      'due_date': udhaar.dueDate?.toIso8601String(),
+      'status': udhaar.status,
+      'notes': udhaar.notes,
+      'created_at': now,
+      'updated_at': now,
+    };
+    return await DatabaseService.insert(DatabaseService.keyUdhaar, udhaarMap);
   }
 
-  // Update udhaar entry
+  // Update udhaar
   Future<bool> updateUdhaar(UdhaarModel udhaar) async {
-    final db = await _db;
-    final updated = udhaar.copyWith(updatedAt: DateTime.now());
-    final count = await db.update(
-      'udhaar',
-      updated.toMap(),
-      where: 'id = ?',
-      whereArgs: [udhaar.id],
+    final updatedMap = {
+      'customer_id': udhaar.customerId,
+      'total_amount': udhaar.totalAmount,
+      'paid_amount': udhaar.paidAmount,
+      'due_date': udhaar.dueDate?.toIso8601String(),
+      'status': udhaar.status,
+      'notes': udhaar.notes,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    final result = await DatabaseService.update(
+      DatabaseService.keyUdhaar,
+      udhaar.id!,
+      updatedMap,
     );
-    return count > 0;
+    return result > 0;
   }
 
-  // Delete udhaar entry
+  // Delete udhaar
   Future<bool> deleteUdhaar(int id) async {
-    final db = await _db;
-    final count = await db.delete(
-      'udhaar',
-      where: 'id = ?',
-      whereArgs: [id],
+    // Delete associated payments first
+    final payments = await DatabaseService.getAll(
+      DatabaseService.keyUdhaarPayments,
     );
-    return count > 0;
+    for (var payment in payments) {
+      if (payment['udhaar_id'] == id) {
+        await DatabaseService.delete(
+          DatabaseService.keyUdhaarPayments,
+          payment['id'],
+        );
+      }
+    }
+    final result = await DatabaseService.delete(DatabaseService.keyUdhaar, id);
+    return result > 0;
   }
 
-  // Add payment to udhaar
+  // Add payment
   Future<int> addPayment(UdhaarPayment payment) async {
-    final db = await _db;
-    final paymentId = await db.insert('udhaar_payments', payment.toMap());
+    final paymentMap = {
+      'udhaar_id': payment.udhaarId,
+      'amount': payment.amount,
+      'payment_date': payment.paymentDate.toIso8601String(),
+      'payment_method': payment.paymentMethod,
+      'notes': payment.notes,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+    final paymentId = await DatabaseService.insert(
+      DatabaseService.keyUdhaarPayments,
+      paymentMap,
+    );
 
     if (paymentId > 0) {
       // Update udhaar paid amount and status
@@ -84,22 +127,13 @@ class UdhaarService {
       if (udhaar != null) {
         final newPaidAmount = udhaar.paidAmount + payment.amount;
         String newStatus = 'pending';
-
         if (newPaidAmount >= udhaar.totalAmount) {
           newStatus = 'paid';
         } else if (newPaidAmount > 0) {
           newStatus = 'partial';
         }
-
-        await db.update(
-          'udhaar',
-          {
-            'paid_amount': newPaidAmount,
-            'status': newStatus,
-            'updated_at': DateTime.now().toIso8601String(),
-          },
-          where: 'id = ?',
-          whereArgs: [payment.udhaarId],
+        await updateUdhaar(
+          udhaar.copyWith(paidAmount: newPaidAmount, status: newStatus),
         );
       }
     }
@@ -109,34 +143,27 @@ class UdhaarService {
 
   // Delete payment
   Future<bool> deletePayment(int paymentId) async {
-    final db = await _db;
+    final payments = await DatabaseService.getAll(
+      DatabaseService.keyUdhaarPayments,
+    );
+    final payment = payments.firstWhere(
+      (p) => p['id'] == paymentId,
+      orElse: () => {},
+    );
+    if (payment.isEmpty) return false;
 
-    // Get payment details first
-    final List<Map<String, dynamic>> paymentMaps = await db.query(
-      'udhaar_payments',
-      where: 'id = ?',
-      whereArgs: [paymentId],
+    final result = await DatabaseService.delete(
+      DatabaseService.keyUdhaarPayments,
+      paymentId,
     );
 
-    if (paymentMaps.isEmpty) return false;
-
-    final payment = UdhaarPayment.fromMap(paymentMaps.first);
-
-    // Delete the payment
-    final count = await db.delete(
-      'udhaar_payments',
-      where: 'id = ?',
-      whereArgs: [paymentId],
-    );
-
-    if (count > 0) {
+    if (result > 0) {
       // Update udhaar paid amount
-      final udhaar = await getUdhaarById(payment.udhaarId);
+      final udhaar = await getUdhaarById(payment['udhaar_id']);
       if (udhaar != null) {
         final newPaidAmount =
-            (udhaar.paidAmount - payment.amount).clamp(0.0, udhaar.totalAmount);
+            udhaar.paidAmount - (payment['amount'] as num).toDouble();
         String newStatus = 'pending';
-
         if (newPaidAmount <= 0) {
           newStatus = 'pending';
         } else if (newPaidAmount >= udhaar.totalAmount) {
@@ -144,69 +171,48 @@ class UdhaarService {
         } else {
           newStatus = 'partial';
         }
-
-        await db.update(
-          'udhaar',
-          {
-            'paid_amount': newPaidAmount,
-            'status': newStatus,
-            'updated_at': DateTime.now().toIso8601String(),
-          },
-          where: 'id = ?',
-          whereArgs: [payment.udhaarId],
+        await updateUdhaar(
+          udhaar.copyWith(
+            paidAmount: newPaidAmount > 0 ? newPaidAmount : 0,
+            status: newStatus,
+          ),
         );
       }
     }
 
-    return count > 0;
+    return result > 0;
   }
 
-  // Get customer udhaar entries
+  // Get customer udhaar
   Future<List<UdhaarModel>> getCustomerUdhaar(int customerId) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT u.*, c.name as customer_name, c.phone as customer_phone
-      FROM udhaar u
-      LEFT JOIN customers c ON u.customer_id = c.id
-      WHERE u.customer_id = ?
-      ORDER BY u.created_at DESC
-    ''', [customerId]);
-    return maps.map((map) => UdhaarModel.fromMap(map)).toList();
+    final udhaar = await getAllUdhaar();
+    return udhaar.where((u) => u.customerId == customerId).toList();
   }
 
-  // Get pending udhaar entries
+  // Get pending udhaar
   Future<List<UdhaarModel>> getPendingUdhaar() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT u.*, c.name as customer_name, c.phone as customer_phone
-      FROM udhaar u
-      LEFT JOIN customers c ON u.customer_id = c.id
-      WHERE u.status != 'paid'
-      ORDER BY u.due_date ASC
-    ''');
-    return maps.map((map) => UdhaarModel.fromMap(map)).toList();
+    final udhaar = await getAllUdhaar();
+    return udhaar.where((u) => u.status != 'paid').toList();
   }
 
-  // Get overdue udhaar entries
+  // Get overdue udhaar
   Future<List<UdhaarModel>> getOverdueUdhaar() async {
-    final db = await _db;
-    final now = DateTime.now().toIso8601String();
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT u.*, c.name as customer_name, c.phone as customer_phone
-      FROM udhaar u
-      LEFT JOIN customers c ON u.customer_id = c.id
-      WHERE u.status != 'paid' AND u.due_date IS NOT NULL AND u.due_date < ?
-      ORDER BY u.due_date ASC
-    ''', [now]);
-    return maps.map((map) => UdhaarModel.fromMap(map)).toList();
+    final udhaar = await getAllUdhaar();
+    final now = DateTime.now();
+    return udhaar.where((u) {
+      return u.status != 'paid' &&
+          u.dueDate != null &&
+          u.dueDate!.isBefore(now);
+    }).toList();
   }
 
-  // Get total pending amount
+  // Get total pending amount - FIXED: replaced fold with for loop
   Future<double> getTotalPendingAmount() async {
-    final db = await _db;
-    final result = await db.rawQuery(
-        'SELECT SUM(total_amount - paid_amount) as total FROM udhaar WHERE status != ?',
-        ['paid']);
-    return (result.first['total'] as num?)?.toDouble() ?? 0.0;
+    final udhaar = await getAllUdhaar();
+    double total = 0.0;
+    for (var u in udhaar) {
+      total += u.remainingAmount;
+    }
+    return total;
   }
 }

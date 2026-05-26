@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import '../../config/theme.dart';
-import '../../providers/auth_provider.dart';
-import '../../providers/subscription_provider.dart';
 
 class TrialExpiredScreen extends StatefulWidget {
   const TrialExpiredScreen({super.key});
@@ -43,17 +40,14 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async => false, // Prevent back navigation
+      onWillPop: () async => false,
       child: Scaffold(
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                BarberTheme.primaryColor,
-                BarberTheme.backgroundColor,
-              ],
+              colors: [BarberTheme.primaryColor, BarberTheme.backgroundColor],
             ),
           ),
           child: SafeArea(
@@ -67,28 +61,28 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Expired Icon
+                        // Demo Icon
                         Container(
                           width: 120,
                           height: 120,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            color: BarberTheme.dangerColor.withOpacity(0.1),
+                            color: BarberTheme.accentColor.withOpacity(0.1),
                             border: Border.all(
-                              color: BarberTheme.dangerColor.withOpacity(0.5),
+                              color: BarberTheme.accentColor.withOpacity(0.5),
                               width: 4,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: BarberTheme.dangerColor.withOpacity(0.2),
+                                color: BarberTheme.accentColor.withOpacity(0.2),
                                 blurRadius: 30,
                                 spreadRadius: 5,
                               ),
                             ],
                           ),
                           child: const Icon(
-                            Icons.timer_off_rounded,
-                            color: BarberTheme.dangerColor,
+                            Icons.desktop_mac_outlined,
+                            color: BarberTheme.accentColor,
                             size: 64,
                           ),
                         ),
@@ -97,9 +91,9 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
 
                         // Title
                         Text(
-                          'Trial Expired',
+                          'Demo Mode',
                           style: GoogleFonts.playfairDisplay(
-                            color: BarberTheme.dangerColor,
+                            color: BarberTheme.accentColor,
                             fontSize: 36,
                             fontWeight: FontWeight.bold,
                           ),
@@ -109,7 +103,7 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
 
                         // Message
                         Text(
-                          'Your 7-day free trial has ended. Don\'t worry, all your data is safe and will be available when you subscribe.',
+                          'Welcome to The Barber Demo! All premium features are unlocked for you to explore.',
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
                             color: BarberTheme.textSecondary,
@@ -140,7 +134,7 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Your data is safe and secure',
+                                'Demo data is pre-loaded for you',
                                 style: GoogleFonts.poppins(
                                   color: BarberTheme.successColor,
                                   fontSize: 14,
@@ -153,7 +147,7 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
 
                         const SizedBox(height: 40),
 
-                        // Features Lost
+                        // Features Included
                         Container(
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
@@ -164,7 +158,7 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'What you\'re missing:',
+                                'What you can do:',
                                 style: GoogleFonts.poppins(
                                   color: BarberTheme.textPrimary,
                                   fontSize: 16,
@@ -172,26 +166,28 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              _buildFeatureItem('Customer Management'),
-                              _buildFeatureItem('Udhaar Book & Tracking'),
-                              _buildFeatureItem('Billing & POS System'),
-                              _buildFeatureItem('Staff Management'),
-                              _buildFeatureItem('Reports & Analytics'),
-                              _buildFeatureItem('QR Payment System'),
+                              _buildFeatureItem('✓ Customer Management'),
+                              _buildFeatureItem('✓ Udhaar Book & Tracking'),
+                              _buildFeatureItem('✓ Billing & POS System'),
+                              _buildFeatureItem('✓ Staff Management'),
+                              _buildFeatureItem('✓ Reports & Analytics'),
+                              _buildFeatureItem('✓ QR Payment System'),
                             ],
                           ),
                         ),
 
                         const SizedBox(height: 32),
 
-                        // Subscribe Button
+                        // Go to Dashboard Button
                         SizedBox(
                           width: double.infinity,
                           height: 56,
                           child: ElevatedButton(
                             onPressed: () {
                               Navigator.pushReplacementNamed(
-                                  context, '/subscription');
+                                context,
+                                '/dashboard',
+                              );
                             },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: BarberTheme.accentColor,
@@ -200,94 +196,17 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               elevation: 8,
-                              shadowColor:
-                                  BarberTheme.accentColor.withOpacity(0.4),
+                              shadowColor: BarberTheme.accentColor.withOpacity(
+                                0.4,
+                              ),
                             ),
                             child: Text(
-                              'View Subscription Plans',
+                              'Enter Demo',
                               style: GoogleFonts.poppins(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Plans Preview
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildPlanPreview('Basic', 'Rs 999'),
-                            const SizedBox(width: 12),
-                            Container(
-                              width: 2,
-                              height: 30,
-                              color: BarberTheme.textSecondary.withOpacity(0.3),
-                            ),
-                            const SizedBox(width: 12),
-                            _buildPlanPreview('Premium', 'Rs 1,999'),
-                            const SizedBox(width: 12),
-                            Container(
-                              width: 2,
-                              height: 30,
-                              color: BarberTheme.textSecondary.withOpacity(0.3),
-                            ),
-                            const SizedBox(width: 12),
-                            _buildPlanPreview('Pro', 'Rs 3,999'),
-                          ],
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // Sign Out Button
-                        TextButton.icon(
-                          onPressed: () async {
-                            final confirm = await showDialog<bool>(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                backgroundColor: BarberTheme.cardColor,
-                                title: Text('Sign Out',
-                                    style: GoogleFonts.poppins(
-                                        color: BarberTheme.textPrimary)),
-                                content: Text(
-                                    'Are you sure you want to sign out?',
-                                    style: GoogleFonts.poppins(
-                                        color: BarberTheme.textSecondary)),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, false),
-                                    child: Text('Cancel',
-                                        style: GoogleFonts.poppins(
-                                            color: BarberTheme.textSecondary)),
-                                  ),
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.pop(context, true),
-                                    child: Text('Sign Out',
-                                        style: GoogleFonts.poppins(
-                                            color: BarberTheme.dangerColor)),
-                                  ),
-                                ],
-                              ),
-                            );
-
-                            if (confirm == true) {
-                              await context.read<AuthProvider>().signOut();
-                              if (context.mounted) {
-                                Navigator.pushReplacementNamed(
-                                    context, '/login');
-                              }
-                            }
-                          },
-                          icon: const Icon(Icons.logout_rounded,
-                              color: BarberTheme.textSecondary, size: 18),
-                          label: Text(
-                            'Sign Out',
-                            style: GoogleFonts.poppins(
-                                color: BarberTheme.textSecondary, fontSize: 14),
                           ),
                         ),
                       ],
@@ -307,8 +226,11 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          const Icon(Icons.lock_outline_rounded,
-              color: BarberTheme.dangerColor, size: 18),
+          const Icon(
+            Icons.check_circle_rounded,
+            color: BarberTheme.successColor,
+            size: 18,
+          ),
           const SizedBox(width: 8),
           Text(
             feature,
@@ -319,29 +241,6 @@ class _TrialExpiredScreenState extends State<TrialExpiredScreen>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPlanPreview(String name, String price) {
-    return Column(
-      children: [
-        Text(
-          name,
-          style: GoogleFonts.poppins(
-            color: BarberTheme.textPrimary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        Text(
-          price,
-          style: GoogleFonts.poppins(
-            color: BarberTheme.accentColor,
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
     );
   }
 }

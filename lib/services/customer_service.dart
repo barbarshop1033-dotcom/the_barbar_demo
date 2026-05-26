@@ -1,169 +1,157 @@
-import 'package:sqflite/sqflite.dart';
 import '../models/customer_model.dart';
 import 'database_service.dart';
 
 class CustomerService {
-  final DatabaseService _databaseService = DatabaseService.instance;
-
-  // Get database instance
-  Future<Database> get _db async => DatabaseService.database;
-
   // Get all customers
   Future<List<CustomerModel>> getAllCustomers() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'customers',
-      orderBy: 'updated_at DESC',
-    );
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
     return maps.map((map) => CustomerModel.fromMap(map)).toList();
   }
 
   // Get customer by ID
   Future<CustomerModel?> getCustomerById(int id) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'customers',
-      where: 'id = ?',
-      whereArgs: [id],
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
+    final map = maps.cast<Map<String, dynamic>?>().firstWhere(
+      (item) => item?['id'] == id,
+      orElse: () => null,
     );
-    if (maps.isEmpty) return null;
-    return CustomerModel.fromMap(maps.first);
+    if (map == null) return null;
+    return CustomerModel.fromMap(map);
   }
 
   // Get customer by phone number
   Future<CustomerModel?> getCustomerByPhone(String phone) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'customers',
-      where: 'phone = ?',
-      whereArgs: [phone],
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
+    final map = maps.cast<Map<String, dynamic>?>().firstWhere(
+      (item) => item?['phone'] == phone,
+      orElse: () => null,
     );
-    if (maps.isEmpty) return null;
-    return CustomerModel.fromMap(maps.first);
+    if (map == null) return null;
+    return CustomerModel.fromMap(map);
   }
 
   // Add new customer
   Future<int> addCustomer(CustomerModel customer) async {
-    final db = await _db;
-    return await db.insert('customers', customer.toMap());
+    final now = DateTime.now().toIso8601String();
+    final customerMap = {
+      ...customer.toMap(),
+      'id': null,
+      'created_at': now,
+      'updated_at': now,
+      'total_spent': customer.totalSpent,
+      'visit_count': customer.visitCount,
+      'last_visit_date': customer.lastVisitDate?.toIso8601String(),
+      'is_regular': customer.isRegular ? 1 : 0,
+    };
+    customerMap.remove('id');
+    return await DatabaseService.insert(
+      DatabaseService.keyCustomers,
+      customerMap,
+    );
   }
 
   // Update customer
   Future<bool> updateCustomer(CustomerModel customer) async {
-    final db = await _db;
-    final updated = customer.copyWith(updatedAt: DateTime.now());
-    final count = await db.update(
-      'customers',
-      updated.toMap(),
-      where: 'id = ?',
-      whereArgs: [customer.id],
+    final updatedMap = {
+      ...customer.toMap(),
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    final result = await DatabaseService.update(
+      DatabaseService.keyCustomers,
+      customer.id!,
+      updatedMap,
     );
-    return count > 0;
+    return result > 0;
   }
 
   // Delete customer
   Future<bool> deleteCustomer(int id) async {
-    final db = await _db;
-    final count = await db.delete(
-      'customers',
-      where: 'id = ?',
-      whereArgs: [id],
+    final result = await DatabaseService.delete(
+      DatabaseService.keyCustomers,
+      id,
     );
-    return count > 0;
+    return result > 0;
   }
 
-  // Search customers by name or phone
+  // Search customers
   Future<List<CustomerModel>> searchCustomers(String query) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'customers',
-      where: 'name LIKE ? OR phone LIKE ?',
-      whereArgs: ['%$query%', '%$query%'],
-      orderBy: 'name ASC',
-    );
-    return maps.map((map) => CustomerModel.fromMap(map)).toList();
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
+    final filtered = maps.where((customer) {
+      final name = customer['name']?.toString().toLowerCase() ?? '';
+      final phone = customer['phone']?.toString().toLowerCase() ?? '';
+      final searchQuery = query.toLowerCase();
+      return name.contains(searchQuery) || phone.contains(searchQuery);
+    }).toList();
+    return filtered.map((map) => CustomerModel.fromMap(map)).toList();
   }
 
   // Get recent customers
   Future<List<CustomerModel>> getRecentCustomers(int limit) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'customers',
-      orderBy: 'updated_at DESC',
-      limit: limit,
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
+    maps.sort(
+      (a, b) => (b['updated_at'] ?? '').compareTo(a['updated_at'] ?? ''),
     );
-    return maps.map((map) => CustomerModel.fromMap(map)).toList();
+    final recent = maps.take(limit).toList();
+    return recent.map((map) => CustomerModel.fromMap(map)).toList();
   }
 
   // Get regular customers
   Future<List<CustomerModel>> getRegularCustomers() async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'customers',
-      where: 'is_regular = ?',
-      whereArgs: [1],
-      orderBy: 'visit_count DESC',
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
+    final regular = maps.where((c) => c['is_regular'] == 1).toList();
+    regular.sort(
+      (a, b) => (b['visit_count'] as int).compareTo(a['visit_count'] as int),
     );
-    return maps.map((map) => CustomerModel.fromMap(map)).toList();
+    return regular.map((map) => CustomerModel.fromMap(map)).toList();
   }
 
   // Get top spending customers
   Future<List<CustomerModel>> getTopSpendingCustomers(int limit) async {
-    final db = await _db;
-    final List<Map<String, dynamic>> maps = await db.query(
-      'customers',
-      orderBy: 'total_spent DESC',
-      limit: limit,
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
+    maps.sort(
+      (a, b) => (b['total_spent'] as num).compareTo(a['total_spent'] as num),
     );
-    return maps.map((map) => CustomerModel.fromMap(map)).toList();
+    final top = maps.take(limit).toList();
+    return top.map((map) => CustomerModel.fromMap(map)).toList();
   }
 
   // Update customer visit stats
   Future<void> updateCustomerVisit(int customerId, double amount) async {
-    final db = await _db;
-    await db.execute('''
-      UPDATE customers 
-      SET total_spent = total_spent + ?, 
-          visit_count = visit_count + 1,
-          last_visit_date = ?,
-          updated_at = ?
-      WHERE id = ?
-    ''', [
-      amount,
-      DateTime.now().toIso8601String(),
-      DateTime.now().toIso8601String(),
-      customerId
-    ]);
-
-    // Check if customer should be marked as regular (more than 5 visits)
     final customer = await getCustomerById(customerId);
-    if (customer != null && customer.visitCount >= 5 && !customer.isRegular) {
-      await db.update(
-        'customers',
-        {'is_regular': 1, 'updated_at': DateTime.now().toIso8601String()},
-        where: 'id = ?',
-        whereArgs: [customerId],
-      );
-    }
+    if (customer == null) return;
+
+    final newTotalSpent = customer.totalSpent + amount;
+    final newVisitCount = customer.visitCount + 1;
+    final isRegular = newVisitCount >= 5;
+
+    await DatabaseService.update(DatabaseService.keyCustomers, customerId, {
+      'total_spent': newTotalSpent,
+      'visit_count': newVisitCount,
+      'last_visit_date': DateTime.now().toIso8601String(),
+      'is_regular': isRegular
+          ? 1
+          : customer.isRegular
+          ? 1
+          : 0,
+      'updated_at': DateTime.now().toIso8601String(),
+    });
   }
 
   // Get total customers count
   Future<int> getCustomerCount() async {
-    final db = await _db;
-    final result = await db.rawQuery('SELECT COUNT(*) as count FROM customers');
-    return Sqflite.firstIntValue(result) ?? 0;
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
+    return maps.length;
   }
 
-  // Get customers who haven't visited in a while
+  // Get inactive customers
   Future<List<CustomerModel>> getInactiveCustomers(int days) async {
-    final db = await _db;
     final cutoffDate = DateTime.now().subtract(Duration(days: days));
-    final List<Map<String, dynamic>> maps = await db.query(
-      'customers',
-      where: 'last_visit_date IS NULL OR last_visit_date < ?',
-      whereArgs: [cutoffDate.toIso8601String()],
-      orderBy: 'last_visit_date ASC',
-    );
-    return maps.map((map) => CustomerModel.fromMap(map)).toList();
+    final maps = await DatabaseService.getAll(DatabaseService.keyCustomers);
+    final inactive = maps.where((c) {
+      final lastVisit = c['last_visit_date'];
+      if (lastVisit == null) return true;
+      return DateTime.parse(lastVisit).isBefore(cutoffDate);
+    }).toList();
+    return inactive.map((map) => CustomerModel.fromMap(map)).toList();
   }
 }

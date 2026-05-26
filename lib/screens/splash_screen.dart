@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:provider/provider.dart';
 import '../config/theme.dart';
-import '../providers/auth_provider.dart';
-import '../providers/subscription_provider.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -41,34 +38,17 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _animationController.forward();
-    _checkAuthAndNavigate();
+    _navigateToDashboard();
   }
 
-  Future<void> _checkAuthAndNavigate() async {
+  Future<void> _navigateToDashboard() async {
     // Wait for splash animation
     await Future.delayed(const Duration(seconds: 2));
 
     if (!mounted) return;
 
-    final authProvider = context.read<AuthProvider>();
-    final subscriptionProvider = context.read<SubscriptionProvider>();
-
-    if (authProvider.isAuthenticated) {
-      // Check subscription status
-      await subscriptionProvider.checkSubscription();
-
-      if (!mounted) return;
-
-      if (subscriptionProvider.isTrialExpired) {
-        Navigator.pushReplacementNamed(context, '/trial-expired');
-      } else if (subscriptionProvider.isPlanExpired) {
-        Navigator.pushReplacementNamed(context, '/plan-expired');
-      } else {
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      }
-    } else {
-      Navigator.pushReplacementNamed(context, '/login');
-    }
+    // Direct to dashboard - no auth check needed for demo
+    Navigator.pushReplacementNamed(context, '/dashboard');
   }
 
   @override
@@ -155,6 +135,19 @@ class _SplashScreenState extends State<SplashScreen>
                         BarberTheme.accentColor.withOpacity(0.7),
                       ),
                       strokeWidth: 2,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Demo notice
+                  Text(
+                    'DEMO VERSION',
+                    style: GoogleFonts.poppins(
+                      color: BarberTheme.accentColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1,
                     ),
                   ),
                 ],
